@@ -5,6 +5,7 @@ import json
 
 
 MAGIC = "PYBUNDLE1"
+PROJECT_MAGIC = "FILEBUNDLE1"
 
 
 def safe_output_path(output_folder: Path, relative_path: str) -> Path:
@@ -30,9 +31,9 @@ def unpack_bundle(bundle_file: Path, output_folder: Path) -> None:
         bundle_file.read_text(encoding="utf-8")
     )
 
-    if bundle.get("format") != MAGIC:
+    if bundle.get("format") not in (MAGIC, PROJECT_MAGIC):
         raise ValueError(
-            f"Invalid bundle format. Expected {MAGIC}."
+            f"Invalid bundle format. Expected {MAGIC} or {PROJECT_MAGIC}."
         )
 
     output_folder.mkdir(parents=True, exist_ok=True)
@@ -42,7 +43,7 @@ def unpack_bundle(bundle_file: Path, output_folder: Path) -> None:
     for record in files:
         relative_path = record["path"]
 
-        if not relative_path.endswith(".py"):
+        if bundle["format"] == MAGIC and not relative_path.endswith(".py"):
             raise ValueError(
                 f"Unexpected non-Python file: {relative_path}"
             )
@@ -67,19 +68,20 @@ def unpack_bundle(bundle_file: Path, output_folder: Path) -> None:
         print(f"Created: {relative_path}")
 
     print()
-    print(f"Restored {len(files)} Python files")
+    label = "project files" if bundle["format"] == PROJECT_MAGIC else "Python files"
+    print(f"Restored {len(files)} {label}")
     print(f"Output: {output_folder.resolve()}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Restore Python files from a PYBUNDLE1 text bundle."
+        description="Restore files from a PYBUNDLE1 or FILEBUNDLE1 text bundle."
     )
 
     parser.add_argument(
         "bundle",
         type=Path,
-        help="TXT bundle created by pack_py.py",
+        help="TXT bundle created by pack.py",
     )
 
     parser.add_argument(
