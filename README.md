@@ -6,13 +6,16 @@ This private repository stores JSON text bundles with Base64-encoded file bytes.
 | Bundle | Contents | Format |
 | --- | --- | --- |
 | `python_bundle.txt` | Existing GenAI manager, wrapper, and test snapshot; 83 Python files | `PYBUNDLE1` |
-| `data_package_agent_bundle.txt` | Complete Data Package Agent project; 97 tracked files, including 80 Python files | `FILEBUNDLE1` |
+| `data_package_agent_bundle.txt` | Complete Data Package Agent project; 190 tracked files, including 144 Python files and 12 bundled skill Markdown files | `FILEBUNDLE1` |
 
 The agent export comes from
-[`KaFaiLi/private_suite`, commit `40360ed`](https://github.com/KaFaiLi/private_suite/tree/40360ed966967fe292105ac4578fdff5228c6864/packages/data-package-agent).
-It includes `src/`, all 18 files under `tests/`, all 16 files under `dashboard/`
+[`KaFaiLi/private_suite`, commit `8406f9d`](https://github.com/KaFaiLi/private_suite/tree/8406f9d55a30e18dcc5e20005480cbaad75394f4/packages/data-package-agent).
+It includes `src/`, all 42 files under `tests/`, all 19 files under `dashboard/`
 (including its tests, HTML, JavaScript, CSS, and SVG), package documentation,
 scripts, `pyproject.toml`, Python selection, and contributor/ignore files.
+The bundled skills under `src/mcp_agent_template/_bundled_skills/` include
+`pnl`, `post-trade-controls`, `risk-commentary`, and `risk-metrics`: each has
+its `SKILL.md` and both reference Markdown files (`dataset.md` and `policy.md`).
 Local environments, caches, build outputs, credentials, and SQLite recordings
 are outside the exported Git-tracked project.
 
@@ -58,15 +61,10 @@ The updated unpacker supports both formats and retains its path containment chec
 
 ## Export validation
 
-The complete export was restored and all 97 files were compared byte-for-byte
-against the source and their decoded bundle records. Compatibility checks also
-verified the Python-only default, binary and CRLF preservation, rejection of
-unsafe paths in both formats, and restoration of the existing 83-file GenAI bundle.
-The restored dashboard JavaScript passed syntax checks.
+The refreshed export was restored with `unpack.py`. All 190 paths matched the
+source project's Git-tracked file list, and every restored file was compared
+byte-for-byte against both its source and decoded bundle record. All four
+`SKILL.md` files and their eight reference Markdown files were verified included.
 
-The restored agent and dashboard suite passed all 149 tests in 36.80 seconds
-using the previously available local dependency cache. Corporate installation
-remains unavailable on this workstation; cached FastMCP 4.0.10 and langchain-core
-1.6.5 are below the project's
-declared minimums. The source requirements are preserved. Repeat the normal
-installation and combined tests after corporate dependency access is restored.
+This refresh validates export completeness and restoration. Application tests
+and corporate dependency installation were not run for this source snapshot.
