@@ -1,12 +1,15 @@
 from pathlib import Path
 import argparse
 import base64
+import hashlib
 import json
 import subprocess
+import zlib
 
 
 MAGIC = "PYBUNDLE1"
 PROJECT_MAGIC = "FILEBUNDLE1"
+COMPRESSED_MAGIC = "ZBUNDLE1"
 
 
 def pack_folder(
@@ -15,6 +18,7 @@ def pack_folder(
     *,
     all_files: bool = False,
     tracked_only: bool = False,
+    compress: bool = True,
 ) -> None:
     source_folder = source_folder.resolve()
     output_file = output_file.resolve()
@@ -62,6 +66,16 @@ def pack_folder(
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
+    if compress:
+        payload = json.dumps(bundle, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        bundle = {
+            "format": COMPRESSED_MAGIC,
+            "compression": "zlib",
+            "encoding": "base64",
+            "sha256": hashlib.sha256(payload).hexdigest(),
+            "data": base64.b64encode(zlib.compress(payload, level=9)).decode("ascii"),
+        }
+
     output_file.write_text(
         json.dumps(bundle, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -75,7 +89,7 @@ def pack_folder(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Combine Python files or a complete project into one text bundle."
+        description="Combine Python files or a complete project into a compressed text bundle."
     )
 
     parser.add_argument(
@@ -98,6 +112,11 @@ def main():
         help="Include every file type, including dashboard assets and project metadata",
     )
     parser.add_argument(
+        "--no-compress",
+        action="store_true",
+        help="Write the legacy uncompressed JSON format instead of compressed text",
+    )
+    parser.add_argument(
         "--tracked-only",
         action="store_true",
         help="Include only Git-tracked files under the source folder (requires Git)",
@@ -113,6 +132,7 @@ def main():
         args.output,
         all_files=args.all_files,
         tracked_only=args.tracked_only,
+        compress=not args.no_compress,
     )
 
 

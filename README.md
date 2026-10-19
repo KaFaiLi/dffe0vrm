@@ -1,21 +1,23 @@
 # Source text bundles
 
-This private repository stores JSON text bundles with Base64-encoded file bytes.
-`pack.py` creates them and `unpack.py` restores the original paths and contents.
+This private repository stores compressed text bundles. `pack.py` compresses
+the file records with zlib and encodes the result as Base64 inside a JSON text
+file. `unpack.py` verifies the SHA-256 checksum and restores the original paths
+and bytes. Both scripts use only the Python standard library.
 
 | Bundle | Contents | Format |
 | --- | --- | --- |
 | `python_bundle.txt` | Existing GenAI manager, wrapper, and test snapshot; 83 Python files | `PYBUNDLE1` |
-| `data_package_agent_bundle.txt` | Complete Data Package Agent project; 190 tracked files, including 144 Python files and 12 bundled skill Markdown files | `FILEBUNDLE1` |
+| `data_package_agent_bundle.txt` | Complete Data Package Agent project; 205 tracked files, including 146 Python files and 12 skill Markdown files | `ZBUNDLE1` (compressed `FILEBUNDLE1`) |
 
 The agent export comes from
-[`KaFaiLi/private_suite`, commit `8406f9d`](https://github.com/KaFaiLi/private_suite/tree/8406f9d55a30e18dcc5e20005480cbaad75394f4/packages/data-package-agent).
-It includes `src/`, all 42 files under `tests/`, all 19 files under `dashboard/`
+[`KaFaiLi/private_suite`, commit `0cee662`](https://github.com/KaFaiLi/private_suite/tree/0cee6620a1c9688f187095eafc50d6308e087db6/packages/data-package-agent).
+It includes `src/`, all 43 files under `tests/`, all 20 files under `dashboard/`
 (including its tests, HTML, JavaScript, CSS, and SVG), package documentation,
 scripts, `pyproject.toml`, Python selection, and contributor/ignore files.
-The bundled skills under `src/mcp_agent_template/_bundled_skills/` include
-`pnl`, `post-trade-controls`, `risk-commentary`, and `risk-metrics`: each has
-its `SKILL.md` and both reference Markdown files (`dataset.md` and `policy.md`).
+The application skills under `skills/` include `market-activity-review`, `pnl`,
+`post-trade-control`, and `risk-metrics`. All four `SKILL.md` files and their eight
+reference Markdown files are included in their original folder structure.
 Local environments, caches, build outputs, credentials, and SQLite recordings
 are outside the exported Git-tracked project.
 
@@ -52,19 +54,51 @@ From this repository, using the current suite checkout:
 python pack.py 'P:/Alan/Github/private_suite/packages/data-package-agent' --all-files --tracked-only -o data_package_agent_bundle.txt
 ```
 
-`--all-files` selects `FILEBUNDLE1` and includes frontend assets and project
+`--all-files` includes frontend assets, skill Markdown files and project
 metadata. `--tracked-only` selects only files tracked by Git under the source
 folder, so ignored local state is excluded. This option requires Git.
 
-Without `--all-files`, the existing Python-only `PYBUNDLE1` behavior is preserved.
-The updated unpacker supports both formats and retains its path containment check.
+Without `--all-files`, only Python files are included. Compression is enabled by
+default for both selections. Add `--no-compress` to write legacy JSON instead:
+
+```powershell
+python pack.py 'P:/Alan/Github/private_suite/packages/data-package-agent' --all-files --tracked-only --no-compress -o uncompressed_agent.txt
+```
+
+## Compression and compatibility
+
+`ZBUNDLE1` is a JSON envelope with `compression: "zlib"`, `encoding: "base64"`,
+`sha256` (the decompressed JSON's SHA-256), and `data` (the compressed bytes as
+Base64). The decompressed JSON retains the existing `PYBUNDLE1` or `FILEBUNDLE1`
+records, preserving binary files, text encoding and line endings. Output is
+deterministic for the same inputs and compression runtime.
+
+The unpacker detects all three formats automatically, so restore commands do
+not change. Use the updated `unpack.py` for compressed bundles; older unpackers
+need bundles created with `--no-compress`. Invalid compressed data or a checksum
+mismatch is rejected before restoration starts. The path containment check still
+applies to both compressed and legacy bundles.
+
+The current agent bundle is **1,012,437 bytes**, compared with **2,481,785 bytes**
+for the same snapshot as legacy JSON: **59.2% smaller**.
 
 ## Export validation
 
-The refreshed export was restored with `unpack.py`. All 190 paths matched the
+The refreshed export was restored with `unpack.py`. All 205 paths matched the
 source project's Git-tracked file list, and every restored file was compared
 byte-for-byte against both its source and decoded bundle record. All four
 `SKILL.md` files and their eight reference Markdown files were verified included.
+Both previously committed legacy bundles also restored byte-for-byte.
+
+Run the 10 standard-library regression tests with:
+
+```powershell
+python -B -m unittest -v
+```
+
+They cover compressed and legacy restoration, CLI options, binary/CRLF/Unicode
+preservation, empty inputs, tracked file selection, output exclusion, deterministic
+compression, corruption rejection and path containment.
 
 This refresh validates export completeness and restoration. Application tests
 and corporate dependency installation were not run for this source snapshot.
