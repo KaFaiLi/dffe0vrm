@@ -8,13 +8,14 @@ and bytes. Both scripts use only the Python standard library.
 | Bundle | Contents | Format |
 | --- | --- | --- |
 | `python_bundle.txt` | Existing GenAI manager, wrapper, and test snapshot; 83 Python files | `PYBUNDLE1` |
-| `data_package_agent_bundle.txt` | Complete Data Package Agent project; 205 tracked files, including 146 Python files and 12 skill Markdown files | `ZBUNDLE1` (compressed `FILEBUNDLE1`) |
+| `data_package_agent_bundle.txt` | Complete Data Package Agent project; 215 tracked files, including 155 Python files and 12 skill Markdown files | `ZBUNDLE1` (compressed `FILEBUNDLE1`) |
 
 The agent export comes from
-[`KaFaiLi/private_suite`, commit `42bc6b3`](https://github.com/KaFaiLi/private_suite/tree/42bc6b39ca9ed7beab9c55d263078e37a647f226/packages/data-package-agent).
-It includes `src/`, all 43 files under `tests/`, all 20 files under `dashboard/`
+[`KaFaiLi/private_suite`, commit `e85767e`](https://github.com/KaFaiLi/private_suite/tree/e85767e593d4bd169ed9639c3e49142648d5df49/packages/data-package-agent).
+It includes `src/`, all 52 files under `tests/`, all 20 files under `dashboard/`
 (including its five test files, HTML, JavaScript, CSS, and SVG), package documentation,
 scripts, `pyproject.toml`, Python selection, and contributor/ignore files.
+All 14 files under `docs/review/` are included.
 The application skills under `skills/` include `market-activity-review`, `pnl`,
 `post-trade-control`, and `risk-metrics`. All four `SKILL.md` files and their eight
 reference Markdown files are included in their original folder structure.
@@ -79,12 +80,12 @@ need bundles created with `--no-compress`. Invalid compressed data or a checksum
 mismatch is rejected before restoration starts. The path containment check still
 applies to both compressed and legacy bundles.
 
-The current agent bundle is **1,015,041 bytes**, compared with **2,487,121 bytes**
-for the same snapshot as legacy JSON: **59.2% smaller**.
+The current agent bundle is **1,061,881 bytes**, compared with **2,606,853 bytes**
+for the same snapshot as legacy JSON: **59.3% smaller**.
 
 ## Export validation
 
-The refreshed export was restored with `unpack.py`. All 205 paths matched the
+The refreshed export was restored with `unpack.py`. All 215 paths matched the
 source project's Git-tracked file list, and every restored file was compared
 byte-for-byte against both its source and decoded bundle record. All four
 `SKILL.md` files and their eight reference Markdown files were verified included.
