@@ -1,4 +1,4 @@
-"""Create a lossless binary source archive."""
+"""Create a lossless compressed source bundle as a text file."""
 
 import argparse
 import lzma
@@ -11,12 +11,12 @@ from bundle import pack_folder
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Compress Python files or a complete project into a .tar.xz archive."
+        description="Compress Python files or a complete project into a .txt bundle."
     )
     parser.add_argument("source", type=Path, help="Source project folder")
     parser.add_argument(
-        "-o", "--output", type=Path, default=Path("python_bundle.tar.xz"),
-        help="Output archive (default: python_bundle.tar.xz)",
+        "-o", "--output", type=Path, default=Path("python_bundle.txt"),
+        help="Output .txt file (default: python_bundle.txt)",
     )
     parser.add_argument(
         "--all-files", action="store_true", help="Include every regular file type",
@@ -36,7 +36,7 @@ def main() -> None:
     except (OSError, ValueError, tarfile.TarError, lzma.LZMAError) as error:
         parser.exit(1, f"Packing failed: {error}\n")
     print(f"Packed {stats.file_count} files ({stats.content_bytes:,} source bytes)")
-    print(f"Archive: {args.output.resolve()} ({stats.archive_bytes:,} bytes)")
+    print(f"Text bundle: {args.output.resolve()} ({stats.archive_bytes:,} bytes)")
 
 
 if __name__ == "__main__":

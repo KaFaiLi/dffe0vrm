@@ -1,8 +1,10 @@
+import base64
 import hashlib
 import io
 import lzma
 import os
 from pathlib import Path
+import random
 import shutil
 import subprocess
 import sys
@@ -15,6 +17,14 @@ from bundle import pack_folder, unpack_bundle
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
+
+
+def text_bundle(data: bytes) -> bytes:
+    return b"TARXZ64/1\n" + base64.encodebytes(data)
+
+
+def compressed_bytes(text: bytes) -> bytes:
+    return base64.b64decode(text.split(b"\n", 1)[1])
 
 
 def file_hashes(folder: Path) -> dict[str, str]:
@@ -46,7 +56,7 @@ class BundleTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.source = self.root / "source"
         self.source.mkdir()
-        self.archive = self.root / "bundle.tar.xz"
+        self.archive = self.root / "bundle.txt"
         self.output = self.root / "restored"
 
     def write_source(self, name: str, content: bytes) -> Path:
@@ -56,6 +66,9 @@ class BundleTests(unittest.TestCase):
         return path
 
     def assert_rejected(self, archive_data: bytes):
+        self.assert_text_rejected(text_bundle(archive_data))
+
+    def assert_text_rejected(self, archive_data: bytes):
         self.archive.write_bytes(archive_data)
         before = set(self.root.iterdir())
         with self.assertRaises((ValueError, OSError, EOFError, tarfile.TarError, lzma.LZMAError)):
@@ -100,21 +113,24 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(restored, packed)
         self.assertEqual(list(self.output.iterdir()), [])
 
-    def test_archive_is_standard_tar_xz_and_ignores_metadata(self):
+    def test_output_is_ascii_text_containing_tar_xz_and_ignores_metadata(self):
         path = self.write_source("a.py", b"a")
         pack_folder(self.source, self.archive)
         first = self.archive.read_bytes()
+        self.assertTrue(first.isascii())
+        self.assertEqual(first.splitlines()[0], b"TARXZ64/1")
+        self.assertTrue(all(len(line) <= 76 for line in first.splitlines()[1:]))
         os.utime(path, (946684800, 946684800))
         pack_folder(self.source, self.archive)
         self.assertEqual(first, self.archive.read_bytes())
-        with tarfile.open(self.archive, "r:xz") as archive:
+        with tarfile.open(fileobj=io.BytesIO(compressed_bytes(first)), mode="r:xz") as archive:
             member = archive.getmember("a.py")
             self.assertEqual((member.mtime, member.uid, member.gid), (0, 0, 0))
             self.assertEqual(archive.extractfile(member).read(), b"a")
 
     def test_output_inside_source_is_excluded_on_repeated_packs(self):
         self.write_source("a.py", b"a")
-        output = self.source / "export.tar.xz"
+        output = self.source / "export.txt"
         first_stats = pack_folder(self.source, output, all_files=True)
         first = output.read_bytes()
         second_stats = pack_folder(self.source, output, all_files=True)
@@ -180,7 +196,7 @@ class BundleTests(unittest.TestCase):
     def test_truncated_and_corrupted_xz_are_rejected(self):
         self.write_source("data.py", b"data\n" * 400000)
         pack_folder(self.source, self.archive)
-        data = self.archive.read_bytes()
+        data = compressed_bytes(self.archive.read_bytes())
         for cut in (1, 6, 12, len(data) // 2):
             with self.subTest(truncated_bytes=cut):
                 self.assert_rejected(data[:-cut])
@@ -212,12 +228,48 @@ class BundleTests(unittest.TestCase):
                 self.assert_rejected(data + suffix)
 
     def test_standard_xz_zero_padding_is_accepted(self):
-        self.archive.write_bytes(lzma.compress(tar_bytes([("file", b"a")])) + b"\0" * 8)
+        self.archive.write_bytes(text_bundle(lzma.compress(tar_bytes([("file", b"a")])) + b"\0" * 8))
         unpack_bundle(self.archive, self.output)
         self.assertEqual((self.output / "file").read_bytes(), b"a")
 
     def test_xz_without_integrity_check_is_rejected(self):
         self.assert_rejected(lzma.compress(tar_bytes([("file", b"a")]), check=lzma.CHECK_NONE))
+
+    def test_text_with_crlf_and_wrapped_whitespace_restores(self):
+        self.write_source("a.py", b"a\r\n")
+        pack_folder(self.source, self.archive)
+        text = self.archive.read_bytes().replace(b"\n", b"\r\n")
+        header, data = text.split(b"\r\n", 1)
+        self.archive.write_bytes(header + b"\r\n" + b" \t" + data + b"\r\n \t")
+        unpack_bundle(self.archive, self.output)
+        self.assertEqual(file_hashes(self.output), file_hashes(self.source))
+
+    def test_invalid_text_headers_and_base64_are_rejected(self):
+        self.write_source("a.py", b"a")
+        pack_folder(self.source, self.archive)
+        text = self.archive.read_bytes()
+        body = b"".join(text.split(b"\n", 1)[1].split())
+        invalid = [
+            b"", b"TARXZ64/2\n" + body, compressed_bytes(text),
+            b"TARXZ64/1\n", b"TARXZ64/1\n!invalid",
+            b"TARXZ64/1\n" + body[:-1], text + b"!",
+            b"TARXZ64/1\n" + body + b"A===", text + b"\xff",
+        ]
+        for index, damaged in enumerate(invalid):
+            with self.subTest(case=index):
+                self.assert_text_rejected(damaged)
+
+    def test_large_incompressible_file_crosses_text_chunk_boundaries(self):
+        self.write_source("random.bin", random.Random(42).randbytes(2 * 1024 * 1024 + 7))
+        packed = pack_folder(self.source, self.archive, all_files=True)
+        self.assertGreater(packed.archive_bytes, 2 * 1024 * 1024)
+        unpack_bundle(self.archive, self.output)
+        self.assertEqual(file_hashes(self.output), file_hashes(self.source))
+
+    def test_pack_requires_txt_extension(self):
+        with self.assertRaisesRegex(ValueError, r"\.txt extension"):
+            pack_folder(self.source, self.root / "bundle.tar.xz")
+        self.assertEqual(list(self.root.iterdir()), [self.source])
 
     def test_unsafe_paths_are_rejected_without_outside_writes(self):
         names = ["../escape", "/absolute", "C:/absolute", "C:relative", "dir\\file", "a/../b", "a//b", "./file", "file:stream"]
@@ -322,13 +374,13 @@ class BundleTests(unittest.TestCase):
         )
         self.assertIn("Packed 1 files", result.stdout)
         result = subprocess.run(
-            [sys.executable, str(REPOSITORY / "unpack.py"), "python_bundle.tar.xz"],
+            [sys.executable, str(REPOSITORY / "unpack.py"), "python_bundle.txt"],
             cwd=self.root, capture_output=True, text=True, check=True,
         )
         self.assertIn("Restored 1 files", result.stdout)
         self.assertEqual(file_hashes(self.root / "restored_project"), file_hashes(self.source))
         result = subprocess.run(
-            [sys.executable, str(REPOSITORY / "unpack.py"), "python_bundle.tar.xz"],
+            [sys.executable, str(REPOSITORY / "unpack.py"), "python_bundle.txt"],
             cwd=self.root, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 1)

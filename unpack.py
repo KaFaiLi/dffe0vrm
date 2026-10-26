@@ -1,4 +1,4 @@
-"""Restore a binary source archive directly into a new folder."""
+"""Restore a compressed text bundle directly into a new folder."""
 
 import argparse
 import lzma
@@ -10,9 +10,9 @@ from bundle import unpack_bundle
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Restore original file paths and bytes from a .tar.xz archive."
+        description="Restore original file paths and bytes from a compressed .txt bundle."
     )
-    parser.add_argument("bundle", type=Path, help="Archive created by pack.py")
+    parser.add_argument("bundle", type=Path, help="Text bundle created by pack.py")
     parser.add_argument(
         "-o", "--output", type=Path, default=Path("restored_project"),
         help="New output folder; must not already exist (default: restored_project)",

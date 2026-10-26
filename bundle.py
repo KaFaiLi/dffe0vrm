@@ -1,5 +1,7 @@
-"""Stream file paths and bytes to and from a single, checked TAR/XZ archive."""
+"""Stream file paths and bytes through TAR/XZ compression and a text envelope."""
 
+import base64
+import binascii
 from dataclasses import dataclass
 import lzma
 import os
@@ -14,6 +16,7 @@ from typing import BinaryIO
 
 BUFFER_SIZE = 1024 * 1024
 COMPRESSION_PRESET = 6
+TEXT_HEADER = b"TARXZ64/1\n"
 
 
 @dataclass(frozen=True)
@@ -21,6 +24,72 @@ class BundleStats:
     file_count: int
     content_bytes: int
     archive_bytes: int
+
+
+class _Base64Writer:
+    """Encode compressed bytes as ASCII lines without buffering the archive."""
+
+    def __init__(self, destination: BinaryIO):
+        self.destination = destination
+        self.pending = b""
+        destination.write(TEXT_HEADER)
+
+    def write(self, data: bytes) -> int:
+        # 57 input bytes produce a complete 76-character Base64 line. Keep
+        # partial lines until the next write so padding occurs only at the end.
+        for offset in range(0, len(data), BUFFER_SIZE):
+            chunk = self.pending + data[offset:offset + BUFFER_SIZE]
+            complete = len(chunk) // 57 * 57
+            if complete:
+                self.destination.write(base64.encodebytes(chunk[:complete]))
+            self.pending = chunk[complete:]
+        return len(data)
+
+    def finish(self) -> None:
+        if self.pending:
+            self.destination.write(base64.encodebytes(self.pending))
+            self.pending = b""
+
+
+class _Base64Reader:
+    """Decode bounded text chunks, rejecting malformed or trailing content."""
+
+    def __init__(self, source: BinaryIO):
+        header = source.readline(len(TEXT_HEADER) + 1)
+        if header not in (TEXT_HEADER, TEXT_HEADER.replace(b"\n", b"\r\n")):
+            raise ValueError("Invalid text bundle header; expected TARXZ64/1")
+        self.source = source
+        self.pending = b""
+        self.decoded = b""
+        self.padded = False
+        self.finished = False
+
+    def read(self, size: int) -> bytes:
+        if size <= 0:
+            return b""
+        while not self.decoded and not self.finished:
+            chunk = self.source.read(64 * 1024)
+            if not chunk:
+                if self.pending:
+                    raise ValueError("Incomplete Base64 data in text bundle")
+                self.finished = True
+                break
+            # Accept ASCII whitespace, including LF and CRLF line wrapping.
+            self.pending += b"".join(chunk.split())
+            if self.padded and self.pending:
+                raise ValueError("Unexpected data after Base64 padding")
+            complete = len(self.pending) // 4 * 4
+            if complete:
+                encoded, self.pending = self.pending[:complete], self.pending[complete:]
+                try:
+                    self.decoded = base64.b64decode(encoded, validate=True)
+                except binascii.Error as error:
+                    raise ValueError(f"Invalid Base64 data in text bundle: {error}") from error
+                self.padded = b"=" in encoded
+                if self.padded and self.pending:
+                    raise ValueError("Unexpected data after Base64 padding")
+        result, self.decoded = self.decoded[:size], self.decoded[size:]
+        return result
 
 
 def _path_parts(name: str) -> list[str]:
@@ -103,10 +172,12 @@ def pack_folder(
     all_files: bool = False,
     tracked_only: bool = False,
 ) -> BundleStats:
-    """Create a deterministic archive, replacing the output only on success."""
+    """Create a deterministic text bundle, replacing the output only on success."""
     source = source_folder.resolve()
     output = output_file.absolute()
     output = output.parent.resolve() / output.name
+    if output.suffix.lower() != ".txt":
+        raise ValueError("Output file must have a .txt extension")
     if not source.is_dir():
         raise NotADirectoryError(f"Source folder does not exist: {source}")
     if output.is_symlink() or output.is_junction():
@@ -120,8 +191,9 @@ def pack_folder(
     content_bytes = 0
     try:
         with os.fdopen(descriptor, "wb") as destination:
+            encoded = _Base64Writer(destination)
             with tarfile.open(
-                fileobj=destination,
+                fileobj=encoded,
                 mode="w:xz",
                 format=tarfile.PAX_FORMAT,
                 preset=COMPRESSION_PRESET,
@@ -142,6 +214,7 @@ def pack_folder(
                         ):
                             raise ValueError(f"Source changed while packing: {path}")
                         content_bytes += member.size
+            encoded.finish()
         archive_bytes = temporary.stat().st_size
         temporary.replace(output)
     finally:
@@ -152,7 +225,7 @@ def pack_folder(
 class _XZReader:
     """Bounded streaming decoder that requires a complete, checked XZ stream."""
 
-    def __init__(self, source: BinaryIO):
+    def __init__(self, source: _Base64Reader):
         self.source = source
         self.decoder = lzma.LZMADecompressor(
             format=lzma.FORMAT_XZ, memlimit=256 * 1024 * 1024
@@ -233,7 +306,7 @@ def unpack_bundle(bundle_file: Path, output_folder: Path) -> BundleStats:
         with tempfile.TemporaryDirectory(prefix=f".{output.name}.", dir=output.parent) as temporary:
             staging = Path(temporary) / "files"
             staging.mkdir()
-            reader = _XZReader(source)
+            reader = _XZReader(_Base64Reader(source))
             with tarfile.open(
                 fileobj=reader, mode="r|", tarinfo=_StrictTarInfo, bufsize=64 * 1024
             ) as archive:
