@@ -69,26 +69,21 @@ JSON bundles and raw binary `.tar.xz` inputs are not supported.
 
 ## Included bundles
 
-| Bundle | Contents | Files | Bundle bytes | Previous text bytes | Reduction |
+| Bundle | Contents | Files | Bundle bytes | Source bytes | Reduction |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `python_bundle.txt` | GenAI manager, wrapper, and test snapshot | 83 | 158,659 | 919,116 | 82.74% |
-| `data_package_agent_bundle.txt` | Complete Data Package Agent snapshot | 257 | 665,566 | 1,264,959 | 47.38% |
+| `data_package_agent_bundle.txt` | Complete Data Package Agent snapshot | 263 | 693,156 | 2,380,286 | 70.88% |
 
-The Python baseline is the original uncompressed JSON bundle. The agent baseline
-is the latest zlib/Base64 text bundle from the remote repository.
+Reduction compares the text bundle size with the total original file bytes.
 
-Both snapshots were converted without changing their relative paths or file
-contents. All **340 files** were restored and compared by path and SHA-256
-against the preceding binary archives (already verified against their original
-records). These comparisons verify file contents; no
-original filesystem metadata was available or required.
+All **263 files** were restored with the current `unpack.py`, checked against the
+source project's complete Git-tracked path list, and compared byte-for-byte with
+the source. Original filesystem metadata is not included.
 
 The agent export comes from
-[`KaFaiLi/private_suite`, commit `ddee7f5`](https://github.com/KaFaiLi/private_suite/tree/ddee7f5/packages/data-package-agent),
-as recorded by the remote snapshot refresh commit `7882227`.
-It includes 161 Python files, all 59 files under `tests/`, all 20 files under
-`dashboard/`, all 21 files under `docs/review/`, package documentation, scripts,
-and project configuration. The application skills under `skills/` include
+[`KaFaiLi/private_suite`, commit `84efa32`](https://github.com/KaFaiLi/private_suite/tree/84efa32d512461bfa5792d14b112af3a34748eb1/packages/data-package-agent).
+It includes 166 Python files, all 63 files under `tests/`, all 20 files under
+`dashboard/` (including five test files), all 21 files under `docs/review/`,
+package documentation, scripts, and project configuration. The application skills under `skills/` include
 `market-activity-review`, `pnl`, `post-trade-control`, and `risk-metrics`;
 all four `SKILL.md` files and their nine reference Markdown files are preserved.
 Local environments, caches, build outputs, credentials, and SQLite recordings
@@ -139,6 +134,6 @@ measurements, not performance guarantees. A separate 32 MiB file restored with
 a matching SHA-256 and a peak of 12.3 MiB measured by `tracemalloc`; this measures
 traced allocations, not total process memory.
 
-The newest remote snapshot was preserved during integration and verified against
-all 257 decoded source records. Application tests and corporate dependency
-installation were not run for this archive-format change.
+The current refresh passed all 30 pack/unpack regression tests on Python 3.12.14
+and the complete 263-file restoration comparison above. Application tests and
+corporate dependency installation were not run for this bundle refresh.
