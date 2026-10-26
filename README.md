@@ -1,35 +1,95 @@
-# Source text bundles
+# Lossless source archives
 
-This private repository stores compressed text bundles. `pack.py` compresses
-the file records with zlib and encodes the result as Base64 inside a JSON text
-file. `unpack.py` verifies the SHA-256 checksum and restores the original paths
-and bytes. Both scripts use only the Python standard library.
+`pack.py` compresses file paths and original bytes into a binary `.tar.xz`
+archive. `unpack.py` restores those files directly into a new folder.
+Requires **Python 3.12 or newer**, with the standard-library `lzma` module.
+There are no third-party dependencies. Git is required only for `--tracked-only`.
 
-| Bundle | Contents | Format |
-| --- | --- | --- |
-| `python_bundle.txt` | Existing GenAI manager, wrapper, and test snapshot; 83 Python files | `PYBUNDLE1` |
-| `data_package_agent_bundle.txt` | Complete Data Package Agent project; 259 tracked files, including 165 Python files and 13 skill Markdown files | `ZBUNDLE1` (compressed `FILEBUNDLE1`) |
-
-The agent export comes from
-[`KaFaiLi/private_suite`, commit `42a5b42`](https://github.com/KaFaiLi/private_suite/tree/42a5b42fce9a2c71912fab1078d02bd33ad9ec9b/packages/data-package-agent).
-It includes `src/`, all 59 files under `tests/`, all 20 files under `dashboard/`
-(including its five test files, HTML, JavaScript, CSS, and SVG), package documentation,
-scripts, `pyproject.toml`, Python selection, and contributor/ignore files.
-All 21 files under `docs/review/` are included.
-The application skills under `skills/` include `market-activity-review`, `pnl`,
-`post-trade-control`, and `risk-metrics`. All four `SKILL.md` files and their nine
-reference Markdown files are included in their original folder structure.
-Local environments, caches, build outputs, credentials, and SQLite recordings
-are outside the exported Git-tracked project.
-
-## Restore the complete agent
+## Pack and restore
 
 ```powershell
-python unpack.py data_package_agent_bundle.txt -o data-package-agent
+# Python files only, including uppercase .PY extensions:
+python pack.py ./project -o python_bundle.tar.xz
+
+# All file types tracked by Git under this folder:
+python pack.py ./project --all-files --tracked-only -o project.tar.xz
+
+# Restore directly into a folder that does not yet exist:
+python unpack.py project.tar.xz -o ./restored_project
 ```
 
-The restored folder keeps the project's existing structure and corporate
-dependency configuration. With the corporate dependencies available, run:
+The default archive is `python_bundle.tar.xz`; the default restore folder is
+`restored_project`. Both commands report the file count and byte totals.
+
+Without `--tracked-only`, packing walks the source folder recursively and does
+not apply Git ignore rules. `--all-files` includes every regular file type.
+Tracked exports read the current working-tree bytes, including unstaged edits;
+they fail if a selected tracked file is missing. The output archive is excluded
+when it is inside the source folder.
+
+## Preservation and failure behavior
+
+- File contents are read and written as bytes. Binary data, encodings, line
+  endings, empty files, and nested relative paths are preserved.
+- Original timestamps, permissions, ownership, and empty directories are not
+  stored. Symlinks, directory junctions, and special files are rejected.
+- Packing uses a stable path order and fixed TAR metadata. XZ preset 6 compresses
+  the whole archive, allowing repetition across files to compress together.
+- Archive creation uses a temporary file beside the destination. An existing
+  archive is replaced only after the new archive has been written successfully.
+- Restoration uses a temporary directory beside the destination. The destination
+  must not exist, even as an empty folder. Files are published only after every
+  entry, the TAR terminator, and the complete XZ integrity check are validated.
+  On failure, temporary output is cleaned up.
+- Extraction rejects unsafe paths, duplicate or conflicting destinations,
+  links, special entries, malformed headers, unchecked XZ streams, and
+  truncated or corrupt archives. Paths must be relative, without backslashes,
+  colons, or empty/`.`/`..` components; Windows also rejects names it cannot
+  represent safely.
+- File contents stream in bounded chunks. Memory also includes the compression
+  dictionary and the list of selected paths. Extraction limits the XZ decoder
+  to 256 MiB and individual extended TAR headers to 1 MiB.
+
+The new tools use only the binary archive format. The former JSON/Base64 formats
+are not supported. The archives can also be read by standard TAR/XZ tools;
+this unpacker intentionally accepts only regular-file entries and PAX path
+headers, as produced by this packer.
+
+## Included archives
+
+| Archive | Contents | Files | Archive bytes | Previous text bytes | Reduction |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `python_bundle.tar.xz` | GenAI manager, wrapper, and test snapshot | 83 | 117,440 | 919,116 | 87.22% |
+| `data_package_agent_bundle.tar.xz` | Complete Data Package Agent snapshot | 257 | 492,684 | 1,264,959 | 61.05% |
+
+The Python baseline is the original uncompressed JSON bundle. The agent baseline
+is the latest zlib/Base64 text bundle from the remote repository.
+
+Both snapshots were converted without changing their relative paths or file
+contents. All **340 files** were restored and compared by path and SHA-256
+against their original records. These comparisons verify file contents; no
+original filesystem metadata was available or required.
+
+The agent export comes from
+[`KaFaiLi/private_suite`, commit `ddee7f5`](https://github.com/KaFaiLi/private_suite/tree/ddee7f5/packages/data-package-agent),
+as recorded by the remote snapshot refresh commit `7882227`.
+It includes 161 Python files, all 59 files under `tests/`, all 20 files under
+`dashboard/`, all 21 files under `docs/review/`, package documentation, scripts,
+and project configuration. The application skills under `skills/` include
+`market-activity-review`, `pnl`, `post-trade-control`, and `risk-metrics`;
+all four `SKILL.md` files and their nine reference Markdown files are preserved.
+Local environments, caches, build outputs, credentials, and SQLite recordings
+are outside this Git-tracked snapshot.
+
+```powershell
+python unpack.py data_package_agent_bundle.tar.xz -o data-package-agent
+
+# Refresh from the suite checkout:
+python pack.py 'P:/Alan/Github/private_suite/packages/data-package-agent' --all-files --tracked-only -o data_package_agent_bundle.tar.xz
+```
+
+The restored agent keeps its corporate dependency configuration. With those
+dependencies available:
 
 ```powershell
 Set-Location data-package-agent
@@ -37,69 +97,33 @@ uv sync --extra dev
 uv run pytest tests dashboard/tests -q
 ```
 
-The dashboard itself needs only Python. Supply an existing recording when
-launching it; databases are not included in the source bundle:
+The dashboard itself needs only Python and an existing recording:
 
 ```powershell
 python dashboard/server.py --db 'P:/path/to/observability.sqlite3'
 ```
 
 The default URL is `http://127.0.0.1:8765`. The viewer reads SQLite without
-changing it. Its full instructions are in the restored `dashboard/README.md`.
+changing it. See the restored `dashboard/README.md` for details.
 
-## Refresh the agent bundle
-
-From this repository, using the current suite checkout:
+## Development and validation
 
 ```powershell
-python pack.py 'P:/Alan/Github/private_suite/packages/data-package-agent' --all-files --tracked-only -o data_package_agent_bundle.txt
+python -m unittest discover -s tests -v
 ```
 
-`--all-files` includes frontend assets, skill Markdown files and project
-metadata. `--tracked-only` selects only files tracked by Git under the source
-folder, so ignored local state is excluded. This option requires Git.
+The suite covers byte-exact round trips, binary and Unicode data, long paths,
+empty files, Python/Git selection, deterministic output, source changes,
+failed writes, output exclusion, malformed archives, unsafe paths, collisions,
+and refusal to overwrite an existing restore directory.
 
-Without `--all-files`, only Python files are included. Compression is enabled by
-default for both selections. Add `--no-compress` to write legacy JSON instead:
+On this Windows workstation with Python 3.13.7, conversion measured 0.59 / 2.81
+seconds to pack and 0.08 / 0.21 seconds to restore the Python / agent snapshots
+respectively, including filesystem I/O. These are single-run
+measurements, not performance guarantees. A separate 32 MiB file restored with
+a matching SHA-256 and a peak of 12.3 MiB measured by `tracemalloc`; this measures
+traced allocations, not total process memory.
 
-```powershell
-python pack.py 'P:/Alan/Github/private_suite/packages/data-package-agent' --all-files --tracked-only --no-compress -o uncompressed_agent.txt
-```
-
-## Compression and compatibility
-
-`ZBUNDLE1` is a JSON envelope with `compression: "zlib"`, `encoding: "base64"`,
-`sha256` (the decompressed JSON's SHA-256), and `data` (the compressed bytes as
-Base64). The decompressed JSON retains the existing `PYBUNDLE1` or `FILEBUNDLE1`
-records, preserving binary files, text encoding and line endings. Output is
-deterministic for the same inputs and compression runtime.
-
-The unpacker detects all three formats automatically, so restore commands do
-not change. Use the updated `unpack.py` for compressed bundles; older unpackers
-need bundles created with `--no-compress`. Invalid compressed data or a checksum
-mismatch is rejected before restoration starts. The path containment check still
-applies to both compressed and legacy bundles.
-
-The current agent bundle is **1,263,645 bytes**, compared with **3,061,526 bytes**
-for the same snapshot as legacy JSON: **58.7% smaller**.
-
-## Export validation
-
-The refreshed export was restored with `unpack.py`. All 259 paths matched the
-source project's Git-tracked file list, and every restored file was compared
-byte-for-byte against both its source and decoded bundle record. All four
-`SKILL.md` files and their nine reference Markdown files were verified included.
-Both previously committed legacy bundles also restored byte-for-byte.
-
-Run the 10 standard-library regression tests with:
-
-```powershell
-python -B -m unittest -v
-```
-
-They cover compressed and legacy restoration, CLI options, binary/CRLF/Unicode
-preservation, empty inputs, tracked file selection, output exclusion, deterministic
-compression, corruption rejection and path containment.
-
-This refresh validates export completeness and restoration. Application tests
-and corporate dependency installation were not run for this source snapshot.
+The newest remote snapshot was preserved during integration and verified against
+all 257 decoded source records. Application tests and corporate dependency
+installation were not run for this archive-format change.
