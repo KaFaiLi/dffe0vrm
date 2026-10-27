@@ -1,0 +1,59 @@
+{
+  "source_repository": "KaFaiLi/private_suite",
+  "source_folder": "packages/data-package-agent",
+  "base_commit": "84efa32d512461bfa5792d14b112af3a34748eb1",
+  "source_commit": "d2ece8977a4a5c10b9f3838e864a780e86978c20",
+  "base_bundle": "data_package_agent_bundle.txt",
+  "base_bundle_sha256": "76621833bdab6f9030327d19a844e8f14567ee4dcc95add2cdc7a49e3f6f925a",
+  "changes_bundle": "data_package_agent_changes.txt",
+  "changes_bundle_sha256": "5de75ea9c78476ffdcf9c17eb78cb745155932aa196af2ddc7a67e78e1311442",
+  "file_count": 11,
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "5d157a38b050381444993fe78eedd03bc1593af0dacde224fb6a70f971c7b782"
+    },
+    {
+      "path": "docs/analysis-visualizations.md",
+      "sha256": "e8f24f653294ce11e0853f401d23698331032b073fb333e81b8ff7d2880c77d2"
+    },
+    {
+      "path": "docs/architecture/skills/risk-metrics.md",
+      "sha256": "911a29eac6f363a4617c117793300c887fc08c20146bae0f97a1f3d0c246a03a"
+    },
+    {
+      "path": "docs/architecture/tools/run-risk-metrics-analysis.md",
+      "sha256": "8576464924801ed1f2a889441d1f042dfb26491893dcd2e30265adf947743706"
+    },
+    {
+      "path": "docs/risk-metrics-analysis.md",
+      "sha256": "601d0da572cc4f082f8a1a25b97d705c4e8b0f7e1f39c818e9c04320c04cd22e"
+    },
+    {
+      "path": "skills/risk-metrics/SKILL.md",
+      "sha256": "37c93fee2dc593bd3b4128ab516fcd4ba02dae46d4f72e490ca2c68251789b90"
+    },
+    {
+      "path": "skills/risk-metrics/references/dataset.md",
+      "sha256": "614f55abd45ab449afa2f7f0cc51f2c60e46be8c722bc754a73d9749d3375f18"
+    },
+    {
+      "path": "src/mcp_agent_template/analysis/risk_metrics/charts.py",
+      "sha256": "f2c8c49054b679904a07137967c976925f55a211d135ed74d43903e83f786d49"
+    },
+    {
+      "path": "src/mcp_agent_template/analysis/risk_metrics/runners.py",
+      "sha256": "ae35ff259121de44588d3b625ef892be9b34656365c9e95a83363b72dcce2d49"
+    },
+    {
+      "path": "src/mcp_agent_template/mcp_server/tools/risk_metrics_tools.py",
+      "sha256": "150af7901963aed148082cd7ec31d9bbdd1d2011a59f90437e2e5c5d67ae140b"
+    },
+    {
+      "path": "tests/analysis/test_charts.py",
+      "sha256": "b5f414737e357e19a3fca650b0002b7ac28e7a51574bc4c065920115cb905846"
+    }
+  ],
+  "deleted_files": [],
+  "verification": "Restored changes match source byte-for-byte. Applying them to the verified base bundle reproduces every current tracked file."
+}

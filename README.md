@@ -114,6 +114,29 @@ python dashboard/server.py --db 'P:/path/to/observability.sqlite3'
 The default URL is `http://127.0.0.1:8765`. The viewer reads SQLite without
 changing it. See the restored `dashboard/README.md` for details.
 
+## Changed-files update
+
+`data_package_agent_changes.txt` contains only the **11 files changed** between
+the full bundle's source commit `84efa32` and
+[`d2ece89`](https://github.com/KaFaiLi/private_suite/tree/d2ece8977a4a5c10b9f3838e864a780e86978c20/packages/data-package-agent).
+The update is **50,373 bytes** and has no deleted files. The full bundle above
+remains the baseline snapshot. `data_package_agent_changes.json` records both
+source commits, every changed path, and SHA-256 checksums.
+
+Restore the update into a new folder, then copy its contents over an existing
+restoration of the baseline full bundle. Use `unpack.py` with `bundle.py` beside it:
+
+```powershell
+python unpack.py data_package_agent_changes.txt -o agent-update
+Copy-Item -Path './agent-update/*' -Destination './data-package-agent' -Recurse -Force
+```
+
+The copy replaces the changed files in `data-package-agent`; the other files
+remain in place. The update includes its changed test, skill and review guidance.
+All 11 restored files were compared byte-for-byte with the new source. Applying
+them to a verified restoration of the baseline reproduced all 263 current tracked
+project files exactly. All 30 pack/unpack regression tests passed.
+
 ## Development and validation
 
 ```powershell
