@@ -71,21 +71,21 @@ JSON bundles and raw binary `.tar.xz` inputs are not supported.
 
 | Bundle | Contents | Files | Bundle bytes | Source bytes | Reduction |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `data_package_agent_bundle.txt` | Complete Data Package Agent snapshot | 263 | 693,156 | 2,380,286 | 70.88% |
+| `data_package_agent_bundle.txt` | Complete Data Package Agent snapshot | 276 | 965,874 | 3,165,864 | 69.49% |
 
 Reduction compares the text bundle size with the total original file bytes.
 
-All **263 files** were restored with the current `unpack.py`, checked against the
+All **276 files** were restored with the current `unpack.py`, checked against the
 source project's complete Git-tracked path list, and compared byte-for-byte with
 the source. Original filesystem metadata is not included.
 
 The agent export comes from
-[`KaFaiLi/private_suite`, commit `84efa32`](https://github.com/KaFaiLi/private_suite/tree/84efa32d512461bfa5792d14b112af3a34748eb1/packages/data-package-agent).
-It includes 166 Python files, all 63 files under `tests/`, all 20 files under
-`dashboard/` (including five test files), all 21 files under `docs/review/`,
+[`KaFaiLi/private_suite`, commit `4a9feba`](https://github.com/KaFaiLi/private_suite/tree/4a9feba22b6def4c9f2ff530e1beaa37edbbb73a/packages/data-package-agent).
+It includes 168 Python files, all 65 files under `tests/`, all 20 files under
+`dashboard/` (including five test files), all 23 files under `docs/review/`,
 package documentation, scripts, and project configuration. The application skills under `skills/` include
 `market-activity-review`, `pnl`, `post-trade-control`, and `risk-metrics`;
-all four `SKILL.md` files and their nine reference Markdown files are preserved.
+all four `SKILL.md` files and their eleven reference Markdown files are preserved.
 Local environments, caches, build outputs, credentials, and SQLite recordings
 are outside this Git-tracked snapshot.
 
@@ -114,14 +114,16 @@ python dashboard/server.py --db 'P:/path/to/observability.sqlite3'
 The default URL is `http://127.0.0.1:8765`. The viewer reads SQLite without
 changing it. See the restored `dashboard/README.md` for details.
 
-## Changed-files update
+## Historical changed-files update
 
 `data_package_agent_changes.txt` contains only the **11 files changed** between
-the full bundle's source commit `84efa32` and
+the earlier full bundle's source commit `84efa32` and
 [`d2ece89`](https://github.com/KaFaiLi/private_suite/tree/d2ece8977a4a5c10b9f3838e864a780e86978c20/packages/data-package-agent).
-The update is **50,373 bytes** and has no deleted files. The full bundle above
-remains the baseline snapshot. `data_package_agent_changes.json` records both
-source commits, every changed path, and SHA-256 checksums.
+The update is **50,373 bytes** and has no deleted files. Its baseline is the
+[full bundle at `e985af0`](https://github.com/KaFaiLi/dffe0vrm/blob/e985af0cbaef4f9b22c2a04e5251c77b17d6fc14/data_package_agent_bundle.txt).
+The current full bundle supersedes this historical update and can be restored
+directly. `data_package_agent_changes.json` records the update's two source
+commits, every changed path, and SHA-256 checksums.
 
 Restore the update into a new folder, then copy its contents over an existing
 restoration of the baseline full bundle. Use `unpack.py` with `bundle.py` beside it:
@@ -158,5 +160,5 @@ a matching SHA-256 and a peak of 12.3 MiB measured by `tracemalloc`; this measur
 traced allocations, not total process memory.
 
 The current refresh passed all 30 pack/unpack regression tests on Python 3.12.14
-and the complete 263-file restoration comparison above. Application tests and
+and the complete 276-file restoration comparison above. Application tests and
 corporate dependency installation were not run for this bundle refresh.
