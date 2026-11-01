@@ -71,21 +71,22 @@ JSON bundles and raw binary `.tar.xz` inputs are not supported.
 
 | Bundle | Contents | Files | Bundle bytes | Source bytes | Reduction |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `data_package_agent_bundle.txt` | Complete Data Package Agent snapshot | 276 | 965,874 | 3,165,864 | 69.49% |
+| `data_package_agent_bundle.txt` | Complete Data Package Agent snapshot | 243 | 1,001,821 | 3,170,430 | 68.40% |
 
 Reduction compares the text bundle size with the total original file bytes.
 
-All **276 files** were restored with the current `unpack.py`, checked against the
+All **243 files** were restored with the current `unpack.py`, checked against the
 source project's complete Git-tracked path list, and compared byte-for-byte with
 the source. Original filesystem metadata is not included.
 
 The agent export comes from
-[`KaFaiLi/private_suite`, commit `4a9feba`](https://github.com/KaFaiLi/private_suite/tree/4a9feba22b6def4c9f2ff530e1beaa37edbbb73a/packages/data-package-agent).
-It includes 168 Python files, all 65 files under `tests/`, all 20 files under
-`dashboard/` (including five test files), all 23 files under `docs/review/`,
-package documentation, scripts, and project configuration. The application skills under `skills/` include
-`market-activity-review`, `pnl`, `post-trade-control`, and `risk-metrics`;
-all four `SKILL.md` files and their eleven reference Markdown files are preserved.
+[`KaFaiLi/private_suite`, commit `88dac29`](https://github.com/KaFaiLi/private_suite/tree/88dac29ce9ef78ea3dcd6af4333879d2accc02df/packages/data-package-agent).
+It includes 137 Python files, all 63 files under `tests/`, all 26 files under
+`docs/review/`, notebooks, package documentation, and project configuration.
+The application skills under `skills/` include `market-activity-review`, `pnl`,
+`post-trade-control`, and `risk-metrics`; all four `SKILL.md` files and their
+12 reference Markdown files are preserved. The old dashboard and custom agent
+recording implementation have been removed from the current source.
 Local environments, caches, build outputs, credentials, and SQLite recordings
 are outside this Git-tracked snapshot.
 
@@ -102,17 +103,8 @@ dependencies available:
 ```powershell
 Set-Location data-package-agent
 uv sync --extra dev
-uv run pytest tests dashboard/tests -q
+uv run pytest tests -q
 ```
-
-The dashboard itself needs only Python and an existing recording:
-
-```powershell
-python dashboard/server.py --db 'P:/path/to/observability.sqlite3'
-```
-
-The default URL is `http://127.0.0.1:8765`. The viewer reads SQLite without
-changing it. See the restored `dashboard/README.md` for details.
 
 ## Historical changed-files update
 
@@ -160,5 +152,5 @@ a matching SHA-256 and a peak of 12.3 MiB measured by `tracemalloc`; this measur
 traced allocations, not total process memory.
 
 The current refresh passed all 30 pack/unpack regression tests on Python 3.12.14
-and the complete 276-file restoration comparison above. Application tests and
+and the complete 243-file restoration comparison above. Application tests and
 corporate dependency installation were not run for this bundle refresh.
