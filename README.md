@@ -71,7 +71,7 @@ JSON bundles and raw binary `.tar.xz` inputs are not supported.
 
 | Bundle | Contents | Files | Bundle bytes | Source bytes | Reduction |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `data_package_agent_bundle.txt` | Complete Data Package Agent snapshot | 243 | 1,001,821 | 3,170,430 | 68.40% |
+| `data_package_agent_bundle.txt` | Complete Data Package Agent snapshot | 243 | 994,932 | 3,139,638 | 68.31% |
 
 Reduction compares the text bundle size with the total original file bytes.
 
@@ -80,9 +80,9 @@ source project's complete Git-tracked path list, and compared byte-for-byte with
 the source. Original filesystem metadata is not included.
 
 The agent export comes from
-[`KaFaiLi/private_suite`, commit `88dac29`](https://github.com/KaFaiLi/private_suite/tree/88dac29ce9ef78ea3dcd6af4333879d2accc02df/packages/data-package-agent).
-It includes 137 Python files, all 63 files under `tests/`, all 26 files under
-`docs/review/`, notebooks, package documentation, and project configuration.
+[`KaFaiLi/private_suite`, commit `8b2d6d9`](https://github.com/KaFaiLi/private_suite/tree/8b2d6d9620e054bcfadd37aa523e518ced5bf6bd/packages/data-package-agent).
+It includes 138 Python files, all 63 files under `tests/`, all 26 files under
+`docs/review/`, both notebook files, package documentation, and project configuration.
 The application skills under `skills/` include `market-activity-review`, `pnl`,
 `post-trade-control`, and `risk-metrics`; all four `SKILL.md` files and their
 12 reference Markdown files are preserved. The old dashboard and custom agent
@@ -94,7 +94,7 @@ are outside this Git-tracked snapshot.
 python unpack.py data_package_agent_bundle.txt -o data-package-agent
 
 # Refresh from the suite checkout:
-python pack.py 'P:/Alan/Github/private_suite/packages/data-package-agent' --all-files --tracked-only -o data_package_agent_bundle.txt
+python -B pack.py ../private_suite/packages/data-package-agent --all-files --tracked-only -o data_package_agent_bundle.txt
 ```
 
 The restored agent keeps its corporate dependency configuration. With those
@@ -151,6 +151,29 @@ measurements, not performance guarantees. A separate 32 MiB file restored with
 a matching SHA-256 and a peak of 12.3 MiB measured by `tracemalloc`; this measures
 traced allocations, not total process memory.
 
-The current refresh passed all 30 pack/unpack regression tests on Python 3.12.14
-and the complete 243-file restoration comparison above. Application tests and
+The 2026-11-02 refresh passed all 30 pack/unpack regression tests on Python 3.12.14
+and the complete 243-file restoration comparison above. The destination was pulled
+from `main` at `55e0a36098ab84424ae24a62f501d454595d06f3`. Shell authentication
+for the private source repository was unavailable, so its latest `main` was
+retrieved through the GitHub connector at the source commit above. The complete
+recursive Git tree supplied the authoritative tracked-file manifest. Every local
+source file was checked against its remote Git blob SHA-1 and byte size before
+packing; the local Git index was populated from those verified package files.
+This was a connector-reconstructed source snapshot, rather than a successful
+shell `git pull` of the private repository.
+
+The exact commands run from the destination checkout were:
+
+```text
+python -B pack.py ../private_suite/packages/data-package-agent --all-files --tracked-only -o data_package_agent_bundle.txt
+python -B unpack.py data_package_agent_bundle.txt -o /tmp/agent-verify-new
+python -B -m unittest discover -s tests -v
+```
+
+The restored path set exactly matched both the remote tracked manifest and local
+`git ls-files` output: 243 files, zero missing paths, zero extra paths, and zero
+byte mismatches. The full text bundle is 994,932 bytes (3,139,638 source bytes),
+with SHA-256 `6857f2e064fdaae2f5bd1577f29a828b63dfb28e6883f3af056e42ef9f2bb027`.
+The historical changed-files TXT bundle and JSON manifest remain byte-for-byte
+unchanged from the destination baseline. Application tests and
 corporate dependency installation were not run for this bundle refresh.
